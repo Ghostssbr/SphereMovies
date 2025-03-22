@@ -42,7 +42,7 @@ def documentacao():
                 box-shadow: 0 0 15px rgba(255, 0, 0, 0.7);
             }
             h1 {
-                color: #ff0000;
+                color: #fff; /* Título em branco */
                 text-align: center;
                 font-size: 2.5em;
                 margin-bottom: 20px;
@@ -107,70 +107,4 @@ def documentacao():
             <code>GET /filmes/search?id=1</code><br>
             <code>GET /filmes/search?title=Homem&id=1</code>
 
-            <h2>Resposta de Exemplo</h2>
-            <pre>
-{
-    "filmes": [
-        {
-            "id": 1,
-            "titulo": "Homem-Aranha",
-            "ano": 2021,
-            "genero": "Ação"
-        },
-        {
-            "id": 2,
-            "titulo": "Homem de Ferro",
-            "ano": 2008,
-            "genero": "Ação"
-        }
-    ]
-}
-            </pre>
-
-            <h2>Erros</h2>
-            <p>Se ocorrer um erro ao ler o arquivo JSON, a API retornará:</p>
-            <pre>
-{
-    "erro": "Erro ao ler o arquivo: [mensagem de erro]"
-}
-            </pre>
-        </div>
-    </body>
-    </html>
-    """
-    return render_template_string(doc_html)
-
-# Rota para obter os filmes
-@app.route('/filmes', methods=['GET'])
-def get_filmes():
-    filmes = ler_filmes(arquivo_json)
-    if "erro" in filmes:
-        return jsonify(filmes), 500
-    return jsonify({"filmes": filmes})
-
-# Rota para pesquisar filmes
-@app.route('/filmes/search', methods=['GET'])
-def search_filmes():
-    filmes = ler_filmes(arquivo_json)
-    if "erro" in filmes:
-        return jsonify(filmes), 500
-
-    # Obtém os parâmetros da query string
-    titulo = request.args.get('title', '').lower().strip('"\'')  # Remove aspas se presentes
-    id_filme = request.args.get('id', type=int)
-
-    # Filtra os filmes com base nos parâmetros
-    resultados = []
-    for filme in filmes:
-        # Verifica se o ID corresponde (se fornecido)
-        if id_filme is not None and filme.get('id') != id_filme:
-            continue
-        # Verifica se o título contém a string fornecida (se fornecido)
-        if titulo and titulo not in filme.get('titulo', '').lower():
-            continue
-        resultados.append(filme)
-
-    return jsonify({"filmes": resultados})
-
-if __name__ == '__main__':
-    app.run(debug=True)
+            <h2>Resposta de Exemplo</h2
