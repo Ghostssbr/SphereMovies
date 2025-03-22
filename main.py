@@ -20,6 +20,20 @@ def ler_filmes(arquivo):
     except Exception as e:
         return {"erro": f"Erro ao ler o arquivo: {e}"}
 
+# Função para buscar detalhes completos de um filme no TMDB
+def buscar_detalhes_filme(filme_id):
+    url = f"{TMDB_BASE_URL}/movie/{filme_id}"
+    params = {
+        "api_key": TMDB_API_KEY,
+        "language": "pt-BR"
+    }
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        return None
+
 # Rota principal com documentação estilizada
 @app.route('/')
 def documentacao():
@@ -195,15 +209,9 @@ def documentacao():
             "ano": "2021",
             "genero": "Ação, Aventura, Ficção Científica",
             "sinopse": "Peter Parker é desmascarado e não consegue mais separar sua vida normal dos grandes riscos de ser um super-herói...",
+            "avaliacao": 8.3,
+            "producao": ["Marvel Studios", "Columbia Pictures"],
             "poster": "https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg"
-        },
-        {
-            "id": 315635,
-            "titulo": "Homem-Aranha: De Volta ao Lar",
-            "ano": "2017",
-            "genero": "Ação, Aventura, Ficção Científica",
-            "sinopse": "Depois de atuar ao lado dos Vingadores, chegou a hora do jovem Peter Parker voltar para casa...",
-            "poster": "https://image.tmdb.org/t/p/w500/1nkwKsWrvea1lWP2iZ7XeIblqQY.jpg"
         }
     ]
 }
@@ -273,14 +281,18 @@ def search_tmdb():
 
         filmes = []
         for filme in dados.get("results", []):
-            filmes.append({
-                "id": filme.get("id"),
-                "titulo": filme.get("title"),
-                "ano": filme.get("release_date", "").split("-")[0] if filme.get("release_date") else "N/A",
-                "genero": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
-                "sinopse": filme.get("overview"),
-                "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
-            })
+            detalhes = buscar_detalhes_filme(filme.get("id"))
+            if detalhes:
+                filmes.append({
+                    "id": filme.get("id"),
+                    "titulo": filme.get("title"),
+                    "ano": filme.get("release_date", "").split("-")[0] if filme.get("release_date") else "N/A",
+                    "genero": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
+                    "sinopse": filme.get("overview"),
+                    "avaliacao": detalhes.get("vote_average"),
+                    "producao": [empresa.get("name") for empresa in detalhes.get("production_companies", [])],
+                    "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
+                })
 
         return jsonify({"filmes": filmes})
     except requests.exceptions.RequestException as e:
@@ -303,14 +315,18 @@ def get_tmdb_populares():
 
         filmes = []
         for filme in dados.get("results", []):
-            filmes.append({
-                "id": filme.get("id"),
-                "titulo": filme.get("title"),
-                "ano": filme.get("release_date", "").split("-")[0] if filme.get("release_date") else "N/A",
-                "genero": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
-                "sinopse": filme.get("overview"),
-                "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
-            })
+            detalhes = buscar_detalhes_filme(filme.get("id"))
+            if detalhes:
+                filmes.append({
+                    "id": filme.get("id"),
+                    "titulo": filme.get("title"),
+                    "ano": filme.get("release_date", "").split("-")[0] if filme.get("release_date") else "N/A",
+                    "genero": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
+                    "sinopse": filme.get("overview"),
+                    "avaliacao": detalhes.get("vote_average"),
+                    "producao": [empresa.get("name") for empresa in detalhes.get("production_companies", [])],
+                    "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
+                })
 
         return jsonify({"filmes": filmes})
     except requests.exceptions.RequestException as e:
