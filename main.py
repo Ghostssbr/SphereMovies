@@ -25,6 +25,8 @@ def documentacao():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>SphereAPI - Documentação</title>
+        <link rel="icon" href="https://img.icons8.com/color/48/000000/movie-projector.png" type="image/x-icon">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
         <style>
             /* Reset básico */
             * {
@@ -152,6 +154,30 @@ def documentacao():
                 transform: translateY(-3px);
                 box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
             }
+
+            /* Botão do WhatsApp */
+            .whatsapp-button {
+                display: inline-block;
+                margin-top: 20px;
+                padding: 10px 20px;
+                background: linear-gradient(90deg, #25D366, #128C7E);
+                color: #fff;
+                border: none;
+                border-radius: 5px;
+                font-size: 1em;
+                cursor: pointer;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                text-decoration: none;
+            }
+
+            .whatsapp-button:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 5px 15px rgba(18, 140, 126, 0.4);
+            }
+
+            .whatsapp-button i {
+                margin-right: 10px;
+            }
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     </head>
@@ -204,6 +230,9 @@ def documentacao():
             </pre>
 
             <button class="example-button" onclick="window.location.href='/filmes'">Testar Rota /filmes</button>
+            <a class="whatsapp-button" href="https://wa.me/?text=Confira%20a%20SphereAPI%20de%20filmes%3A%20http%3A%2F%2F127.0.0.1%3A5000%2F" target="_blank">
+                <i class="fab fa-whatsapp"></i> Compartilhar no WhatsApp
+            </a>
         </div>
     </body>
     </html>
