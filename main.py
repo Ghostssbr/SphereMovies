@@ -24,10 +24,10 @@ def documentacao():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Documentação da API de Filmes</title>
+        <title>SphereAPI - Documentação</title>
         <style>
             body {
-                font-family: Arial, sans-serif;
+                font-family: 'Arial', sans-serif;
                 background-color: #000;
                 color: #fff;
                 margin: 0;
@@ -37,24 +37,28 @@ def documentacao():
                 max-width: 800px;
                 margin: 50px auto;
                 padding: 20px;
-                background-color: #222;
+                background-color: #111;
                 border-radius: 10px;
-                box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+                box-shadow: 0 0 15px rgba(255, 0, 0, 0.7);
             }
             h1 {
                 color: #ff0000;
                 text-align: center;
+                font-size: 2.5em;
+                margin-bottom: 20px;
             }
             h2 {
                 color: #ff0000;
                 border-bottom: 2px solid #ff0000;
                 padding-bottom: 5px;
+                margin-top: 30px;
             }
             code {
-                background-color: #444;
+                background-color: #333;
                 color: #ff0000;
                 padding: 2px 5px;
                 border-radius: 3px;
+                font-family: 'Courier New', monospace;
             }
             a {
                 color: #ff0000;
@@ -63,12 +67,30 @@ def documentacao():
             a:hover {
                 text-decoration: underline;
             }
+            ul {
+                list-style-type: none;
+                padding: 0;
+            }
+            li {
+                margin: 10px 0;
+            }
+            pre {
+                background-color: #222;
+                padding: 10px;
+                border-radius: 5px;
+                color: #fff;
+                overflow-x: auto;
+            }
+            .highlight {
+                color: #ff0000;
+                font-weight: bold;
+            }
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>API de Filmes</h1>
-            <p>Bem-vindo à API de filmes! Abaixo estão os detalhes de como usar a API.</p>
+            <h1>SphereAPI</h1>
+            <p>Bem-vindo à <span class="highlight">SphereAPI</span>, sua API de filmes! Abaixo estão os detalhes de como usar a API.</p>
             
             <h2>Rotas Disponíveis</h2>
             <ul>
@@ -81,9 +103,9 @@ def documentacao():
             <code>GET /filmes</code>
 
             <p>Para pesquisar filmes por título ou ID, use:</p>
-            <code>GET /filmes/search?title="Título"</code><br>
+            <code>GET /filmes/search?title=Homem</code><br>
             <code>GET /filmes/search?id=1</code><br>
-            <code>GET /filmes/search?title="Título"&id=1</code>
+            <code>GET /filmes/search?title=Homem&id=1</code>
 
             <h2>Resposta de Exemplo</h2>
             <pre>
@@ -107,11 +129,11 @@ def documentacao():
 
             <h2>Erros</h2>
             <p>Se ocorrer um erro ao ler o arquivo JSON, a API retornará:</p>
-            <code>
+            <pre>
 {
     "erro": "Erro ao ler o arquivo: [mensagem de erro]"
 }
-            </code>
+            </pre>
         </div>
     </body>
     </html>
@@ -134,7 +156,7 @@ def search_filmes():
         return jsonify(filmes), 500
 
     # Obtém os parâmetros da query string
-    titulo = request.args.get('title', '').lower()
+    titulo = request.args.get('title', '').lower().strip('"\'')  # Remove aspas se presentes
     id_filme = request.args.get('id', type=int)
 
     # Filtra os filmes com base nos parâmetros
