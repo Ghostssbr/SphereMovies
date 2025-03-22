@@ -1,27 +1,13 @@
-from fastapi import FastAPI
-from typing import List
+from flask import Flask, jsonify
 import json
-from pydantic import BaseModel
 
-app = FastAPI()
+app = Flask(__name__)
 
 # Nome do arquivo JSON
 arquivo_json = "filmes.json"
 
-# Modelo para representar um Filme
-class Filme(BaseModel):
-    titulo: str
-    ano: int
-    duracao: str
-    classificacao: str
-    imdb: float
-    sinopse: str
-    generos: List[str]
-    qualidade: str
-    player: str
-
 # Função para ler e retornar os dados do JSON
-def ler_filmes(arquivo: str):
+def ler_filmes(arquivo):
     try:
         with open(arquivo, "r", encoding="utf-8") as file:
             filmes = json.load(file)
@@ -30,13 +16,12 @@ def ler_filmes(arquivo: str):
         return {"erro": f"Erro ao ler o arquivo: {e}"}
 
 # Rota da API para obter os filmes
-@app.get("/api/filmes", response_model=List[Filme])
-async def get_filmes():
+@app.route('/api/filmes', methods=['GET'])
+def get_filmes():
     filmes = ler_filmes(arquivo_json)
     if "erro" in filmes:
-        return filmes
-    return filmes
+        return jsonify(filmes), 500
+    return jsonify(filmes)
 
 if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    app.run(debug=True)
