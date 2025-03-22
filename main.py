@@ -1,10 +1,17 @@
 from flask import Flask, jsonify, render_template_string, request
 import json
+import requests
 
 app = Flask(__name__)
 
+# Nome do arquivo JSON local
 arquivo_json = "filmes.json"
 
+# Chave da API do TMDB (substitua pela sua chave)
+TMDB_API_KEY = "e83f31e1c568e9c4c7ed9f9fea0cd541"  # Substitua pela sua chave
+TMDB_BASE_URL = "https://api.themoviedb.org/3"
+
+# Função para ler e retornar os dados do JSON local
 def ler_filmes(arquivo):
     try:
         with open(arquivo, "r", encoding="utf-8") as file:
@@ -13,6 +20,7 @@ def ler_filmes(arquivo):
     except Exception as e:
         return {"erro": f"Erro ao ler o arquivo: {e}"}
 
+# Rota principal com documentação estilizada
 @app.route('/')
 def documentacao():
     doc_html = """
@@ -156,18 +164,22 @@ def documentacao():
             
             <h2>Rotas Disponíveis</h2>
             <ul>
-                <li><strong>GET /filmes</strong>: Retorna a lista completa de filmes.</li>
-                <li><strong>GET /filmes/search</strong>: Permite pesquisar filmes por título ou ID.</li>
+                <li><strong>GET /filmes</strong>: Retorna a lista completa de filmes locais.</li>
+                <li><strong>GET /filmes/search</strong>: Permite pesquisar filmes locais por título ou ID.</li>
+                <li><strong>GET /tmdb/search</strong>: Busca filmes no TMDB por título.</li>
             </ul>
 
             <h2>Exemplo de Uso</h2>
-            <p>Para obter a lista de filmes, faça uma requisição GET para:</p>
+            <p>Para obter a lista de filmes locais, faça uma requisição GET para:</p>
             <code>GET /filmes</code>
 
-            <p>Para pesquisar filmes por título ou ID, use:</p>
+            <p>Para pesquisar filmes locais por título ou ID, use:</p>
             <code>GET /filmes/search?title=Homem</code><br>
             <code>GET /filmes/search?id=1</code><br>
             <code>GET /filmes/search?title=Homem&id=1</code>
+
+            <p>Para buscar filmes no TMDB por título, use:</p>
+            <code>GET /tmdb/search?title=Homem</code>
 
             <h2>Resposta de Exemplo</h2>
             <pre>
@@ -204,6 +216,7 @@ def documentacao():
     """
     return render_template_string(doc_html)
 
+# Rota para obter os filmes locais
 @app.route('/filmes', methods=['GET'])
 def get_filmes():
     filmes = ler_filmes(arquivo_json)
@@ -211,6 +224,7 @@ def get_filmes():
         return jsonify(filmes), 500
     return jsonify({"filmes": filmes})
 
+# Rota para pesquisar filmes locais
 @app.route('/filmes/search', methods=['GET'])
 def search_filmes():
     filmes = ler_filmes(arquivo_json)
@@ -229,6 +243,40 @@ def search_filmes():
         resultados.append(filme)
 
     return jsonify({"filmes": resultados})
+
+# Rota para buscar filmes no TMDB
+@app.route('/tmdb/search', methods=['GET'])
+def search_tmdb():
+    titulo = request.args.get('title', '').strip()
+    if not titulo:
+        return jsonify({"erro": "O parâmetro 'title' é obrigatório"}), 400
+
+    url = f"{TMDB_BASE_URL}/search/movie"
+    params = {
+        "api_key": TMDB_API_KEY,
+        "query": titulo,
+        "language": "pt-BR"
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        dados = response.json()
+
+        filmes = []
+        for filme in dados.get("results", []):
+            filmes.append({
+                "id": filme.get("id"),
+                "titulo": filme.get("title"),
+                "ano": filme.get("release_date", "").split("-")[0] if filme.get("release_date") else "N/A",
+                "genero": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
+                "sinopse": filme.get("overview"),
+                "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
+            })
+
+        return jsonify({"filmes": filmes})
+    except requests.exceptions.RequestException as e:
+        return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
