@@ -5,7 +5,7 @@ from typing import List
 
 app = FastAPI()
 
-# Modelo Pydantic para validação de dados
+# Modelo Pydantic para validar os dados do filme
 class Filme(BaseModel):
     id: int
     titulo: str
@@ -18,10 +18,13 @@ class Filme(BaseModel):
     qualidade: str
     player: str
 
+# Nome do arquivo JSON
+DB_FILE = "filmes.json"
+
 # Função para ler o banco de dados JSON
 def ler_db():
     try:
-        with open("filmes.json", "r", encoding="utf-8") as f:
+        with open(DB_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         return {"filmes": []}  # Retorna uma lista vazia se o arquivo não existir
@@ -30,7 +33,7 @@ def ler_db():
 
 # Função para salvar no banco de dados JSON
 def salvar_db(db):
-    with open("filmes.json", "w", encoding="utf-8") as f:
+    with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(db, f, ensure_ascii=False, indent=4)
 
 # Rota para listar todos os filmes
