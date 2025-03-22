@@ -167,6 +167,7 @@ def documentacao():
                 <li><strong>GET /filmes</strong>: Retorna a lista completa de filmes locais.</li>
                 <li><strong>GET /filmes/search</strong>: Permite pesquisar filmes locais por título ou ID.</li>
                 <li><strong>GET /tmdb/search</strong>: Busca filmes no TMDB por título.</li>
+                <li><strong>GET /tmdb</strong>: Retorna uma lista de filmes populares do TMDB.</li>
             </ul>
 
             <h2>Exemplo de Uso</h2>
@@ -181,21 +182,28 @@ def documentacao():
             <p>Para buscar filmes no TMDB por título, use:</p>
             <code>GET /tmdb/search?title=Homem</code>
 
+            <p>Para obter filmes populares do TMDB, use:</p>
+            <code>GET /tmdb</code>
+
             <h2>Resposta de Exemplo</h2>
             <pre>
 {
     "filmes": [
         {
-            "id": 1,
-            "titulo": "Homem-Aranha",
-            "ano": 2021,
-            "genero": "Ação"
+            "id": 634649,
+            "titulo": "Homem-Aranha: Sem Volta para Casa",
+            "ano": "2021",
+            "genero": "Ação, Aventura, Ficção Científica",
+            "sinopse": "Peter Parker é desmascarado e não consegue mais separar sua vida normal dos grandes riscos de ser um super-herói...",
+            "poster": "https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg"
         },
         {
-            "id": 2,
-            "titulo": "Homem de Ferro",
-            "ano": 2008,
-            "genero": "Ação"
+            "id": 315635,
+            "titulo": "Homem-Aranha: De Volta ao Lar",
+            "ano": "2017",
+            "genero": "Ação, Aventura, Ficção Científica",
+            "sinopse": "Depois de atuar ao lado dos Vingadores, chegou a hora do jovem Peter Parker voltar para casa...",
+            "poster": "https://image.tmdb.org/t/p/w500/1nkwKsWrvea1lWP2iZ7XeIblqQY.jpg"
         }
     ]
 }
@@ -244,7 +252,7 @@ def search_filmes():
 
     return jsonify({"filmes": resultados})
 
-# Rota para buscar filmes no TMDB
+# Rota para buscar filmes no TMDB por título
 @app.route('/tmdb/search', methods=['GET'])
 def search_tmdb():
     titulo = request.args.get('title', '').strip()
@@ -256,6 +264,36 @@ def search_tmdb():
         "api_key": TMDB_API_KEY,
         "query": titulo,
         "language": "pt-BR"
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        dados = response.json()
+
+        filmes = []
+        for filme in dados.get("results", []):
+            filmes.append({
+                "id": filme.get("id"),
+                "titulo": filme.get("title"),
+                "ano": filme.get("release_date", "").split("-")[0] if filme.get("release_date") else "N/A",
+                "genero": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
+                "sinopse": filme.get("overview"),
+                "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
+            })
+
+        return jsonify({"filmes": filmes})
+    except requests.exceptions.RequestException as e:
+        return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
+
+# Rota para obter filmes populares do TMDB
+@app.route('/tmdb', methods=['GET'])
+def get_tmdb_populares():
+    url = f"{TMDB_BASE_URL}/movie/popular"
+    params = {
+        "api_key": TMDB_API_KEY,
+        "language": "pt-BR",
+        "page": 1  # Página de resultados (pode ser ajustada)
     }
 
     try:
