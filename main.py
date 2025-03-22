@@ -38,6 +38,24 @@ def buscar_filme_no_tmdb(titulo):
     except requests.exceptions.RequestException as e:
         return None
 
+# Função para buscar o diretor de um filme no TMDB
+def buscar_diretor(filme_id):
+    url = f"{TMDB_BASE_URL}/movie/{filme_id}/credits"
+    params = {
+        "api_key": TMDB_API_KEY,
+        "language": "pt-BR"
+    }
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        dados = response.json()
+        for pessoa in dados.get("crew", []):
+            if pessoa.get("job") == "Director":
+                return pessoa.get("name")
+        return "Diretor não disponível"
+    except requests.exceptions.RequestException as e:
+        return "Erro ao buscar diretor"
+
 # Função para atualizar os filmes locais com informações do TMDB
 def atualizar_filmes_com_tmdb(filmes):
     for filme in filmes:
@@ -45,6 +63,9 @@ def atualizar_filmes_com_tmdb(filmes):
         if titulo:
             dados_tmdb = buscar_filme_no_tmdb(titulo)
             if dados_tmdb:
+                # Busca o diretor (autor) do filme
+                autor = buscar_diretor(dados_tmdb.get("id"))
+
                 # Atualiza as informações do filme, mantendo o campo "player"
                 player = filme.get("player", "")  # Preserva o campo "player"
                 filme.update({
@@ -54,7 +75,7 @@ def atualizar_filmes_com_tmdb(filmes):
                     "generos": ", ".join([str(g) for g in dados_tmdb.get("genre_ids", [])]),
                     "sinopse": dados_tmdb.get("overview"),
                     "avaliacao": dados_tmdb.get("vote_average"),
-                    "producao": [empresa.get("name") for empresa in dados_tmdb.get("production_companies", [])],
+                    "autor": autor,  # Substitui "producao" por "autor"
                     "poster": f"https://image.tmdb.org/t/p/w500{dados_tmdb.get('poster_path')}" if dados_tmdb.get("poster_path") else None,
                     "player": player  # Mantém o campo "player" original
                 })
@@ -232,7 +253,7 @@ def documentacao():
             "generos": "Ação, Aventura, Ficção Científica",
             "sinopse": "Peter Parker é desmascarado e não consegue mais separar sua vida normal dos grandes riscos de ser um super-herói...",
             "avaliacao": 8.3,
-            "producao": ["Marvel Studios", "Columbia Pictures"],
+            "autor": "Jon Watts",
             "poster": "https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
             "player": "https://exemplo.com/player1"
         }
@@ -314,7 +335,7 @@ def search_tmdb():
                 "generos": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
                 "sinopse": filme.get("overview"),
                 "avaliacao": filme.get("vote_average"),
-                "producao": [empresa.get("name") for empresa in filme.get("production_companies", [])],
+                "autor": buscar_diretor(filme.get("id")),  # Inclui o diretor (autor)
                 "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
             })
 
