@@ -20,19 +20,56 @@ def ler_filmes(arquivo):
     except Exception as e:
         return {"erro": f"Erro ao ler o arquivo: {e}"}
 
-# Função para buscar detalhes completos de um filme no TMDB
-def buscar_detalhes_filme(filme_id):
-    url = f"{TMDB_BASE_URL}/movie/{filme_id}"
+# Função para buscar detalhes de um filme no TMDB por título
+def buscar_filme_no_tmdb(titulo):
+    url = f"{TMDB_BASE_URL}/search/movie"
     params = {
         "api_key": TMDB_API_KEY,
+        "query": titulo,
         "language": "pt-BR"
     }
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
-        return response.json()
+        dados = response.json()
+        if dados.get("results"):
+            return dados["results"][0]  # Retorna o primeiro resultado
+        return None
     except requests.exceptions.RequestException as e:
         return None
+
+# Função para atualizar os filmes locais com informações do TMDB
+def atualizar_filmes_com_tmdb():
+    filmes = ler_filmes(arquivo_json)
+    if "erro" in filmes:
+        return filmes
+
+    for filme in filmes:
+        titulo = filme.get("titulo")
+        if titulo:
+            dados_tmdb = buscar_filme_no_tmdb(titulo)
+            if dados_tmdb:
+                # Atualiza as informações do filme, mantendo o campo "player"
+                player = filme.get("player", "")  # Preserva o campo "player"
+                filme.update({
+                    "id": dados_tmdb.get("id"),
+                    "titulo": dados_tmdb.get("title"),
+                    "ano": dados_tmdb.get("release_date", "").split("-")[0] if dados_tmdb.get("release_date") else "N/A",
+                    "genero": ", ".join([str(g) for g in dados_tmdb.get("genre_ids", [])]),
+                    "sinopse": dados_tmdb.get("overview"),
+                    "avaliacao": dados_tmdb.get("vote_average"),
+                    "producao": [empresa.get("name") for empresa in dados_tmdb.get("production_companies", [])],
+                    "poster": f"https://image.tmdb.org/t/p/w500{dados_tmdb.get('poster_path')}" if dados_tmdb.get("poster_path") else None,
+                    "player": player  # Mantém o campo "player" original
+                })
+
+    # Salva o arquivo JSON atualizado
+    try:
+        with open(arquivo_json, "w", encoding="utf-8") as file:
+            json.dump(filmes, file, ensure_ascii=False, indent=4)
+        return {"mensagem": "Filmes atualizados com sucesso!"}
+    except Exception as e:
+        return {"erro": f"Erro ao salvar o arquivo: {e}"}
 
 # Rota principal com documentação estilizada
 @app.route('/')
@@ -181,7 +218,7 @@ def documentacao():
                 <li><strong>GET /filmes</strong>: Retorna a lista completa de filmes locais.</li>
                 <li><strong>GET /filmes/search</strong>: Permite pesquisar filmes locais por título ou ID.</li>
                 <li><strong>GET /tmdb/search</strong>: Busca filmes no TMDB por título.</li>
-                <li><strong>GET /tmdb</strong>: Retorna uma lista de filmes populares do TMDB.</li>
+                <li><strong>POST /atualizar-filmes</strong>: Atualiza os filmes locais com informações do TMDB.</li>
             </ul>
 
             <h2>Exemplo de Uso</h2>
@@ -196,24 +233,13 @@ def documentacao():
             <p>Para buscar filmes no TMDB por título, use:</p>
             <code>GET /tmdb/search?title=Homem</code>
 
-            <p>Para obter filmes populares do TMDB, use:</p>
-            <code>GET /tmdb</code>
+            <p>Para atualizar os filmes locais com informações do TMDB, use:</p>
+            <code>POST /atualizar-filmes</code>
 
             <h2>Resposta de Exemplo</h2>
             <pre>
 {
-    "filmes": [
-        {
-            "id": 634649,
-            "titulo": "Homem-Aranha: Sem Volta para Casa",
-            "ano": "2021",
-            "genero": "Ação, Aventura, Ficção Científica",
-            "sinopse": "Peter Parker é desmascarado e não consegue mais separar sua vida normal dos grandes riscos de ser um super-herói...",
-            "avaliacao": 8.3,
-            "producao": ["Marvel Studios", "Columbia Pictures"],
-            "poster": "https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg"
-        }
-    ]
+    "mensagem": "Filmes atualizados com sucesso!"
 }
             </pre>
 
@@ -281,56 +307,28 @@ def search_tmdb():
 
         filmes = []
         for filme in dados.get("results", []):
-            detalhes = buscar_detalhes_filme(filme.get("id"))
-            if detalhes:
-                filmes.append({
-                    "id": filme.get("id"),
-                    "titulo": filme.get("title"),
-                    "ano": filme.get("release_date", "").split("-")[0] if filme.get("release_date") else "N/A",
-                    "genero": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
-                    "sinopse": filme.get("overview"),
-                    "avaliacao": detalhes.get("vote_average"),
-                    "producao": [empresa.get("name") for empresa in detalhes.get("production_companies", [])],
-                    "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
-                })
+            filmes.append({
+                "id": filme.get("id"),
+                "titulo": filme.get("title"),
+                "ano": filme.get("release_date", "").split("-")[0] if filme.get("release_date") else "N/A",
+                "genero": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
+                "sinopse": filme.get("overview"),
+                "avaliacao": filme.get("vote_average"),
+                "producao": [empresa.get("name") for empresa in filme.get("production_companies", [])],
+                "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
+            })
 
         return jsonify({"filmes": filmes})
     except requests.exceptions.RequestException as e:
         return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
 
-# Rota para obter filmes populares do TMDB
-@app.route('/tmdb', methods=['GET'])
-def get_tmdb_populares():
-    url = f"{TMDB_BASE_URL}/movie/popular"
-    params = {
-        "api_key": TMDB_API_KEY,
-        "language": "pt-BR",
-        "page": 1  # Página de resultados (pode ser ajustada)
-    }
-
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        dados = response.json()
-
-        filmes = []
-        for filme in dados.get("results", []):
-            detalhes = buscar_detalhes_filme(filme.get("id"))
-            if detalhes:
-                filmes.append({
-                    "id": filme.get("id"),
-                    "titulo": filme.get("title"),
-                    "ano": filme.get("release_date", "").split("-")[0] if filme.get("release_date") else "N/A",
-                    "genero": ", ".join([str(g) for g in filme.get("genre_ids", [])]),
-                    "sinopse": filme.get("overview"),
-                    "avaliacao": detalhes.get("vote_average"),
-                    "producao": [empresa.get("name") for empresa in detalhes.get("production_companies", [])],
-                    "poster": f"https://image.tmdb.org/t/p/w500{filme.get('poster_path')}" if filme.get("poster_path") else None
-                })
-
-        return jsonify({"filmes": filmes})
-    except requests.exceptions.RequestException as e:
-        return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
+# Rota para atualizar os filmes locais com informações do TMDB
+@app.route('/atualizar-filmes', methods=['POST'])
+def atualizar_filmes():
+    resultado = atualizar_filmes_com_tmdb()
+    if "erro" in resultado:
+        return jsonify(resultado), 500
+    return jsonify(resultado)
 
 if __name__ == '__main__':
     app.run(debug=True)
