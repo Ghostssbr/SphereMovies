@@ -4,58 +4,83 @@ import requests
 
 app = Flask(__name__)
 
+# Nome do arquivo JSON local
 arquivo_json = "filmes.json"
-TMDB_API_KEY = "e83f31e1c568e9c4c7ed9f9fea0cd541"
+
+# Chave da API do TMDB (substitua pela sua chave)
+TMDB_API_KEY = "e83f31e1c568e9c4c7ed9f9fea0cd541"  # Substitua pela sua chave
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
+# Função para ler e retornar os dados do JSON local
 def ler_filmes(arquivo):
     try:
         with open(arquivo, "r", encoding="utf-8") as file:
-            return json.load(file)
+            filmes = json.load(file)
+            return filmes
     except Exception as e:
         return {"erro": f"Erro ao ler o arquivo: {e}"}
 
+# Função para buscar detalhes de um filme no TMDB por título
 def buscar_filme_no_tmdb(titulo):
     url = f"{TMDB_BASE_URL}/search/movie"
-    params = {"api_key": TMDB_API_KEY, "query": titulo, "language": "pt-BR"}
+    params = {
+        "api_key": TMDB_API_KEY,
+        "query": titulo,
+        "language": "pt-BR"
+    }
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
         dados = response.json()
-        return dados["results"][0] if dados.get("results") else None
-    except requests.exceptions.RequestException:
+        if dados.get("results"):
+            return dados["results"][0]  # Retorna o primeiro resultado
+        return None
+    except requests.exceptions.RequestException as e:
         return None
 
+# Função para buscar detalhes completos de um filme no TMDB
 def buscar_detalhes_filme(filme_id):
     url = f"{TMDB_BASE_URL}/movie/{filme_id}"
-    params = {"api_key": TMDB_API_KEY, "language": "pt-BR"}
+    params = {
+        "api_key": TMDB_API_KEY,
+        "language": "pt-BR"
+    }
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
         return response.json()
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
         return None
 
+# Função para buscar créditos de um filme no TMDB
 def buscar_creditos_filme(filme_id):
     url = f"{TMDB_BASE_URL}/movie/{filme_id}/credits"
-    params = {"api_key": TMDB_API_KEY, "language": "pt-BR"}
+    params = {
+        "api_key": TMDB_API_KEY,
+        "language": "pt-BR"
+    }
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
         return response.json()
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
         return None
 
+# Função para buscar detalhes de uma pessoa no TMDB
 def buscar_detalhes_pessoa(pessoa_id):
     url = f"{TMDB_BASE_URL}/person/{pessoa_id}"
-    params = {"api_key": TMDB_API_KEY, "language": "pt-BR"}
+    params = {
+        "api_key": TMDB_API_KEY,
+        "language": "pt-BR"
+    }
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
         return response.json()
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
         return None
 
+# Função para atualizar os filmes locais com informações do TMDB
 def atualizar_filmes_com_tmdb(filmes):
     for filme in filmes:
         titulo = filme.get("titulo")
@@ -67,11 +92,13 @@ def atualizar_filmes_com_tmdb(filmes):
                 creditos_filme = buscar_creditos_filme(filme_id)
 
                 if detalhes_filme and creditos_filme:
-                    diretores = [p["name"] for p in creditos_filme.get("crew", []) if p["job"] == "Director"]
-                    roteiristas = [p["name"] for p in creditos_filme.get("crew", []) if p["job"] == "Screenplay"]
-                    elenco = [{"nome": p["name"], "personagem": p["character"], "foto": f"https://image.tmdb.org/t/p/w500{p['profile_path']}" if p.get("profile_path") else None} for p in creditos_filme.get("cast", [])[:5]]
+                    # Busca diretores, roteiristas e elenco
+                    diretores = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Director"]
+                    roteiristas = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Screenplay"]
+                    elenco = [{"nome": pessoa["name"], "personagem": pessoa["character"], "foto": f"https://image.tmdb.org/t/p/w500{pessoa['profile_path']}" if pessoa.get("profile_path") else None} for pessoa in creditos_filme.get("cast", [])[:5]]  # Limita a 5 atores
 
-                    player = filme.get("player", "")
+                    # Atualiza as informações do filme
+                    player = filme.get("player", "")  # Preserva o campo "player"
                     filme.update({
                         "id": filme_id,
                         "titulo": detalhes_filme.get("title"),
@@ -84,10 +111,11 @@ def atualizar_filmes_com_tmdb(filmes):
                         "roteiristas": roteiristas,
                         "elenco": elenco,
                         "poster": f"https://image.tmdb.org/t/p/w500{detalhes_filme.get('poster_path')}" if detalhes_filme.get("poster_path") else None,
-                        "player": player
+                        "player": player  # Mantém o campo "player" original
                     })
     return filmes
 
+# Rota principal com documentação e planos
 @app.route('/')
 def documentacao():
     doc_html = """
@@ -96,42 +124,212 @@ def documentacao():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>SphereAPI - Documentação</title>
+        <title>SphereAPI - Documentação e Planos</title>
         <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #1a1a1a, #000); color: #fff; line-height: 1.6; padding: 20px; }
-            .container { max-width: 1200px; margin: 50px auto; padding: 30px; background: rgba(255, 255, 255, 0.05); border-radius: 15px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(255, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); }
-            h1 { color: #fff; text-align: center; font-size: 3em; margin-bottom: 20px; font-weight: 600; background: linear-gradient(90deg, #ff0000, #ff6f00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: glow 2s infinite alternate; }
-            @keyframes glow { 0% { text-shadow: 0 0 5px rgba(255, 0, 0, 0.7); } 100% { text-shadow: 0 0 20px rgba(255, 0, 0, 0.9); } }
-            h2 { color: #ff0000; font-size: 1.8em; margin-top: 30px; margin-bottom: 15px; font-weight: 500; border-bottom: 2px solid #ff0000; padding-bottom: 5px; }
-            p { font-size: 1.1em; margin-bottom: 20px; }
-            code { background: rgba(255, 0, 0, 0.1); color: #ff0000; padding: 3px 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.95em; }
-            a { color: #ff0000; text-decoration: none; transition: color 0.3s ease; }
-            a:hover { color: #ff6f00; }
-            ul { list-style-type: none; padding: 0; }
-            li { margin: 10px 0; font-size: 1.1em; }
-            pre { background: rgba(255, 0, 0, 0.1); padding: 15px; border-radius: 8px; color: #fff; overflow-x: auto; font-size: 0.95em; line-height: 1.5; margin: 20px 0; }
-            .highlight { color: #ff0000; font-weight: bold; }
-            .example-button { display: inline-block; margin-top: 20px; padding: 10px 20px; background: linear-gradient(90deg, #ff0000, #ff6f00); color: #fff; border: none; border-radius: 5px; font-size: 1em; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; }
-            .example-button:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4); }
-            .planos { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px; margin-top: 40px; }
-            .plano { background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; width: 30%; text-align: center; transition: transform 0.3s ease, box-shadow 0.3s ease; }
-            .plano:hover { transform: translateY(-10px); box-shadow: 0 10px 20px rgba(255, 0, 0, 0.4); }
-            .plano h3 { font-size: 1.5em; margin-bottom: 10px; color: #ff6f00; }
-            .plano .preco { font-size: 2em; font-weight: bold; color: #ff0000; margin: 20px 0; }
-            .plano .preco span { font-size: 0.5em; color: #fff; }
-            .plano ul { list-style-type: none; padding: 0; margin: 20px 0; }
-            .plano ul li { margin: 10px 0; font-size: 1.1em; }
-            .plano .btn { display: inline-block; padding: 10px 20px; background: linear-gradient(90deg, #ff0000, #ff6f00); color: #fff; border: none; border-radius: 5px; font-size: 1em; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; }
-            .plano .btn:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4); }
-            @media (max-width: 768px) { .plano { width: 100%; } }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: 'Poppins', sans-serif;
+                background: linear-gradient(135deg, #1a1a1a, #000);
+                color: #fff;
+                line-height: 1.6;
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 1200px;
+                margin: 50px auto;
+                padding: 30px;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 15px;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            h1 {
+                color: #fff;
+                text-align: center;
+                font-size: 3em;
+                margin-bottom: 20px;
+                font-weight: 600;
+                background: linear-gradient(90deg, #ff0000, #ff6f00);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: glow 2s infinite alternate;
+            }
+
+            @keyframes glow {
+                0% {
+                    text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+                }
+                100% {
+                    text-shadow: 0 0 20px rgba(255, 0, 0, 0.9);
+                }
+            }
+
+            h2 {
+                color: #ff0000;
+                font-size: 1.8em;
+                margin-top: 30px;
+                margin-bottom: 15px;
+                font-weight: 500;
+                border-bottom: 2px solid #ff0000;
+                padding-bottom: 5px;
+            }
+
+            p {
+                font-size: 1.1em;
+                margin-bottom: 20px;
+            }
+
+            code {
+                background: rgba(255, 0, 0, 0.1);
+                color: #ff0000;
+                padding: 3px 8px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 0.95em;
+            }
+
+            a {
+                color: #ff0000;
+                text-decoration: none;
+                transition: color 0.3s ease;
+            }
+
+            a:hover {
+                color: #ff6f00;
+            }
+
+            ul {
+                list-style-type: none;
+                padding: 0;
+            }
+
+            li {
+                margin: 10px 0;
+                font-size: 1.1em;
+            }
+
+            pre {
+                background: rgba(255, 0, 0, 0.1);
+                padding: 15px;
+                border-radius: 8px;
+                color: #fff;
+                overflow-x: auto;
+                font-size: 0.95em;
+                line-height: 1.5;
+                margin: 20px 0;
+            }
+
+            .highlight {
+                color: #ff0000;
+                font-weight: bold;
+            }
+
+            .example-button {
+                display: inline-block;
+                margin-top: 20px;
+                padding: 10px 20px;
+                background: linear-gradient(90deg, #ff0000, #ff6f00);
+                color: #fff;
+                border: none;
+                border-radius: 5px;
+                font-size: 1em;
+                cursor: pointer;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+
+            .example-button:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
+            }
+
+            .planos {
+                display: flex;
+                justify-content: space-around;
+                flex-wrap: wrap;
+                gap: 20px;
+                margin-top: 40px;
+            }
+
+            .plano {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 15px;
+                padding: 20px;
+                width: 30%;
+                text-align: center;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+
+            .plano:hover {
+                transform: translateY(-10px);
+                box-shadow: 0 10px 20px rgba(255, 0, 0, 0.4);
+            }
+
+            .plano h3 {
+                font-size: 1.5em;
+                margin-bottom: 10px;
+                color: #ff6f00;
+            }
+
+            .plano .preco {
+                font-size: 2em;
+                font-weight: bold;
+                color: #ff0000;
+                margin: 20px 0;
+            }
+
+            .plano .preco span {
+                font-size: 0.5em;
+                color: #fff;
+            }
+
+            .plano ul {
+                list-style-type: none;
+                padding: 0;
+                margin: 20px 0;
+            }
+
+            .plano ul li {
+                margin: 10px 0;
+                font-size: 1.1em;
+            }
+
+            .plano .btn {
+                display: inline-block;
+                padding: 10px 20px;
+                background: linear-gradient(90deg, #ff0000, #ff6f00);
+                color: #fff;
+                border: none;
+                border-radius: 5px;
+                font-size: 1em;
+                cursor: pointer;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+
+            .plano .btn:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
+            }
+
+            @media (max-width: 768px) {
+                .plano {
+                    width: 100%;
+                }
+            }
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     </head>
     <body>
         <div class="container">
             <h1>SphereAPI</h1>
-            <p>Bem-vindo à <span class="highlight">SphereAPI</span>, sua API de filmes! Abaixo estão os detalhes de como usar a API.</p>
+            <p>Bem-vindo à <span class="highlight">SphereAPI</span>, sua API de filmes, mangás e animes! Abaixo estão os detalhes de como usar a API e os planos disponíveis.</p>
             
             <h2>Rotas Disponíveis</h2>
             <ul>
@@ -195,36 +393,40 @@ def documentacao():
 
             <button class="example-button" onclick="window.location.href='/filmes'">Testar Rota /filmes</button>
 
-            <!-- Seção de Planos -->
-            <h2>Planos</h2>
+            <h2>Planos Disponíveis</h2>
             <div class="planos">
+                <!-- Plano Básico -->
                 <div class="plano">
                     <h3>Básico</h3>
                     <div class="preco">R$ 29,90<span>/mês</span></div>
                     <ul>
                         <li>Até 1000 requisições/mês</li>
-                        <li>Acesso a todos os filmes</li>
+                        <li>Acesso a filmes</li>
                         <li>Suporte por e-mail</li>
                     </ul>
                     <button class="btn">Assinar</button>
                 </div>
+
+                <!-- Plano Intermediário -->
                 <div class="plano">
                     <h3>Intermediário</h3>
                     <div class="preco">R$ 59,90<span>/mês</span></div>
                     <ul>
                         <li>Até 5000 requisições/mês</li>
-                        <li>Acesso a todos os filmes</li>
+                        <li>Acesso a filmes e mangás</li>
                         <li>Suporte prioritário</li>
                         <li>Estatísticas de uso</li>
                     </ul>
                     <button class="btn">Assinar</button>
                 </div>
+
+                <!-- Plano Premium -->
                 <div class="plano">
                     <h3>Premium</h3>
                     <div class="preco">R$ 99,90<span>/mês</span></div>
                     <ul>
-                        <li>Requisições ilimitadas</li>
-                        <li>Acesso a todos os filmes</li>
+                        <li>Requisições ilimitadas (∞)</li>
+                        <li>Acesso a filmes, mangás e animes</li>
                         <li>Suporte 24/7</li>
                         <li>Estatísticas de uso</li>
                         <li>Integração personalizada</li>
@@ -238,60 +440,5 @@ def documentacao():
     """
     return render_template_string(doc_html)
 
-@app.route('/filmes', methods=['GET'])
-def get_filmes():
-    filmes = ler_filmes(arquivo_json)
-    if "erro" in filmes:
-        return jsonify(filmes), 500
-    filmes_atualizados = atualizar_filmes_com_tmdb(filmes)
-    return jsonify({"filmes": filmes_atualizados})
-
-@app.route('/filmes/search', methods=['GET'])
-def search_filmes():
-    filmes = ler_filmes(arquivo_json)
-    if "erro" in filmes:
-        return jsonify(filmes), 500
-    titulo = request.args.get('title', '').lower().strip('"\'')
-    id_filme = request.args.get('id', type=int)
-    resultados = [filme for filme in filmes if (id_filme is None or filme.get('id') == id_filme) and (not titulo or titulo in filme.get('titulo', '').lower())]
-    return jsonify({"filmes": resultados})
-
-@app.route('/tmdb/search', methods=['GET'])
-def search_tmdb():
-    titulo = request.args.get('title', '').strip()
-    if not titulo:
-        return jsonify({"erro": "O parâmetro 'title' é obrigatório"}), 400
-    url = f"{TMDB_BASE_URL}/search/movie"
-    params = {"api_key": TMDB_API_KEY, "query": titulo, "language": "pt-BR"}
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        dados = response.json()
-        filmes = []
-        for filme in dados.get("results", []):
-            filme_id = filme.get("id")
-            detalhes_filme = buscar_detalhes_filme(filme_id)
-            creditos_filme = buscar_creditos_filme(filme_id)
-            if detalhes_filme and creditos_filme:
-                diretores = [p["name"] for p in creditos_filme.get("crew", []) if p["job"] == "Director"]
-                roteiristas = [p["name"] for p in creditos_filme.get("crew", []) if p["job"] == "Screenplay"]
-                elenco = [{"nome": p["name"], "personagem": p["character"], "foto": f"https://image.tmdb.org/t/p/w500{p['profile_path']}" if p.get("profile_path") else None} for p in creditos_filme.get("cast", [])[:5]]
-                filmes.append({
-                    "id": filme_id,
-                    "titulo": detalhes_filme.get("title"),
-                    "ano": detalhes_filme.get("release_date", "").split("-")[0] if detalhes_filme.get("release_date") else "N/A",
-                    "generos": ", ".join([g["name"] for g in detalhes_filme.get("genres", [])]),
-                    "sinopse": detalhes_filme.get("overview"),
-                    "avaliacao": detalhes_filme.get("vote_average"),
-                    "duracao": detalhes_filme.get("runtime"),
-                    "diretores": diretores,
-                    "roteiristas": roteiristas,
-                    "elenco": elenco,
-                    "poster": f"https://image.tmdb.org/t/p/w500{detalhes_filme.get('poster_path')}" if detalhes_filme.get("poster_path") else None
-                })
-        return jsonify({"filmes": filmes})
-    except requests.exceptions.RequestException as e:
-        return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# Rota para obter os filmes locais atualizados com informações do TMDB
+@app.route('/filmes',
