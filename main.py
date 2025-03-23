@@ -407,4 +407,3 @@ if __name__ == '__main__':
     app.run(debug=True) 
 
 
-eu quero que coloque em todos as finais das URL sem mexer na rota tô falando assim toda final do campo de URL coloque &plan=free
