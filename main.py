@@ -318,11 +318,205 @@ def documentacao():
             </pre>
 
             <button class="example-button" onclick="window.location.href='/filmes'">Testar Rota /filmes</button>
+            <button class="example-button" onclick="window.location.href='/planos'">Ver Planos</button>
         </div>
     </body>
     </html>
     """
     return render_template_string(doc_html)
+
+# Rota para a página de planos
+@app.route('/planos')
+def planos():
+    planos_html = """
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Planos - SphereAPI</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: 'Poppins', sans-serif;
+                background: linear-gradient(135deg, #1a1a1a, #000);
+                color: #fff;
+                line-height: 1.6;
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 1200px;
+                margin: 50px auto;
+                padding: 30px;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 15px;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            h1 {
+                color: #fff;
+                text-align: center;
+                font-size: 3em;
+                margin-bottom: 20px;
+                font-weight: 600;
+                background: linear-gradient(90deg, #ff0000, #ff6f00);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: glow 2s infinite alternate;
+            }
+
+            @keyframes glow {
+                0% {
+                    text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+                }
+                100% {
+                    text-shadow: 0 0 20px rgba(255, 0, 0, 0.9);
+                }
+            }
+
+            h2 {
+                color: #ff0000;
+                font-size: 1.8em;
+                margin-top: 30px;
+                margin-bottom: 15px;
+                font-weight: 500;
+                border-bottom: 2px solid #ff0000;
+                padding-bottom: 5px;
+            }
+
+            .planos {
+                display: flex;
+                justify-content: space-around;
+                flex-wrap: wrap;
+                gap: 20px;
+            }
+
+            .plano {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 15px;
+                padding: 20px;
+                width: 30%;
+                text-align: center;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+
+            .plano:hover {
+                transform: translateY(-10px);
+                box-shadow: 0 10px 20px rgba(255, 0, 0, 0.4);
+            }
+
+            .plano h3 {
+                font-size: 1.5em;
+                margin-bottom: 10px;
+                color: #ff6f00;
+            }
+
+            .plano .preco {
+                font-size: 2em;
+                font-weight: bold;
+                color: #ff0000;
+                margin: 20px 0;
+            }
+
+            .plano .preco span {
+                font-size: 0.5em;
+                color: #fff;
+            }
+
+            .plano ul {
+                list-style-type: none;
+                padding: 0;
+                margin: 20px 0;
+            }
+
+            .plano ul li {
+                margin: 10px 0;
+                font-size: 1.1em;
+            }
+
+            .plano .btn {
+                display: inline-block;
+                padding: 10px 20px;
+                background: linear-gradient(90deg, #ff0000, #ff6f00);
+                color: #fff;
+                border: none;
+                border-radius: 5px;
+                font-size: 1em;
+                cursor: pointer;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+
+            .plano .btn:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
+            }
+
+            @media (max-width: 768px) {
+                .plano {
+                    width: 100%;
+                }
+            }
+        </style>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div class="container">
+            <h1>Planos SphereAPI</h1>
+            <p>Escolha o plano que melhor se adapta às suas necessidades e comece a usar a SphereAPI hoje mesmo!</p>
+            
+            <div class="planos">
+                <!-- Plano Básico -->
+                <div class="plano">
+                    <h3>Básico</h3>
+                    <div class="preco">R$ 29,90<span>/mês</span></div>
+                    <ul>
+                        <li>Até 1000 requisições/mês</li>
+                        <li>Acesso a todos os filmes</li>
+                        <li>Suporte por e-mail</li>
+                    </ul>
+                    <button class="btn">Assinar</button>
+                </div>
+
+                <!-- Plano Intermediário -->
+                <div class="plano">
+                    <h3>Intermediário</h3>
+                    <div class="preco">R$ 59,90<span>/mês</span></div>
+                    <ul>
+                        <li>Até 5000 requisições/mês</li>
+                        <li>Acesso a todos os filmes</li>
+                        <li>Suporte prioritário</li>
+                        <li>Estatísticas de uso</li>
+                    </ul>
+                    <button class="btn">Assinar</button>
+                </div>
+
+                <!-- Plano Premium -->
+                <div class="plano">
+                    <h3>Premium</h3>
+                    <div class="preco">R$ 99,90<span>/mês</span></div>
+                    <ul>
+                        <li>Requisições ilimitadas</li>
+                        <li>Acesso a todos os filmes</li>
+                        <li>Suporte 24/7</li>
+                        <li>Estatísticas de uso</li>
+                        <li>Integração personalizada</li>
+                    </ul>
+                    <button class="btn">Assinar</button>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return render_template_string(planos_html)
 
 # Rota para obter os filmes locais atualizados com informações do TMDB
 @app.route('/filmes', methods=['GET'])
@@ -383,25 +577,4 @@ def search_tmdb():
             if detalhes_filme and creditos_filme:
                 diretores = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Director"]
                 roteiristas = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Screenplay"]
-                elenco = [{"nome": pessoa["name"], "personagem": pessoa["character"], "foto": f"https://image.tmdb.org/t/p/w500{pessoa['profile_path']}" if pessoa.get("profile_path") else None} for pessoa in creditos_filme.get("cast", [])[:5]]
-
-                filmes.append({
-                    "id": filme_id,
-                    "titulo": detalhes_filme.get("title"),
-                    "ano": detalhes_filme.get("release_date", "").split("-")[0] if detalhes_filme.get("release_date") else "N/A",
-                    "generos": ", ".join([g["name"] for g in detalhes_filme.get("genres", [])]),
-                    "sinopse": detalhes_filme.get("overview"),
-                    "avaliacao": detalhes_filme.get("vote_average"),
-                    "duracao": detalhes_filme.get("runtime"),
-                    "diretores": diretores,
-                    "roteiristas": roteiristas,
-                    "elenco": elenco,
-                    "poster": f"https://image.tmdb.org/t/p/w500{detalhes_filme.get('poster_path')}" if detalhes_filme.get("poster_path") else None
-                })
-
-        return jsonify({"filmes": filmes})
-    except requests.exceptions.RequestException as e:
-        return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True)
+                elenco = [{"nome": pessoa["name"], "personagem": pessoa["character"], "foto": f"https://image.tmdb.org/t/
