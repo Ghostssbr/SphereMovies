@@ -11,6 +11,11 @@ arquivo_json = "filmes.json"
 TMDB_API_KEY = "e83f31e1c568e9c4c7ed9f9fea0cd541"  # Substitua pela sua chave
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
+# Filtro personalizado para adicionar &plan=free ao final da URL
+@app.template_filter('add_plan')
+def add_plan_filter(url):
+    return f"{url}&plan=free" if url else url
+
 # Função para ler e retornar os dados do JSON local
 def ler_filmes(arquivo):
     try:
@@ -115,7 +120,7 @@ def atualizar_filmes_com_tmdb(filmes):
                     })
     return filmes
 
-# Rota principal com documentação e planos
+# Rota principal com documentação estilizada
 @app.route('/')
 def documentacao():
     doc_html = """
@@ -124,7 +129,7 @@ def documentacao():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>SphereAPI - Documentação e Planos</title>
+        <title>SphereAPI - Documentação</title>
         <style>
             * {
                 margin: 0;
@@ -141,7 +146,7 @@ def documentacao():
             }
 
             .container {
-                max-width: 1200px;
+                max-width: 800px;
                 margin: 50px auto;
                 padding: 30px;
                 background: rgba(255, 255, 255, 0.05);
@@ -249,87 +254,13 @@ def documentacao():
                 transform: translateY(-3px);
                 box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
             }
-
-            .planos {
-                display: flex;
-                justify-content: space-around;
-                flex-wrap: wrap;
-                gap: 20px;
-                margin-top: 40px;
-            }
-
-            .plano {
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 15px;
-                padding: 20px;
-                width: 30%;
-                text-align: center;
-                transition: transform 0.3s ease, box-shadow 0.3s ease;
-            }
-
-            .plano:hover {
-                transform: translateY(-10px);
-                box-shadow: 0 10px 20px rgba(255, 0, 0, 0.4);
-            }
-
-            .plano h3 {
-                font-size: 1.5em;
-                margin-bottom: 10px;
-                color: #ff6f00;
-            }
-
-            .plano .preco {
-                font-size: 2em;
-                font-weight: bold;
-                color: #ff0000;
-                margin: 20px 0;
-            }
-
-            .plano .preco span {
-                font-size: 0.5em;
-                color: #fff;
-            }
-
-            .plano ul {
-                list-style-type: none;
-                padding: 0;
-                margin: 20px 0;
-            }
-
-            .plano ul li {
-                margin: 10px 0;
-                font-size: 1.1em;
-            }
-
-            .plano .btn {
-                display: inline-block;
-                padding: 10px 20px;
-                background: linear-gradient(90deg, #ff0000, #ff6f00);
-                color: #fff;
-                border: none;
-                border-radius: 5px;
-                font-size: 1em;
-                cursor: pointer;
-                transition: transform 0.3s ease, box-shadow 0.3s ease;
-            }
-
-            .plano .btn:hover {
-                transform: translateY(-3px);
-                box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
-            }
-
-            @media (max-width: 768px) {
-                .plano {
-                    width: 100%;
-                }
-            }
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     </head>
     <body>
         <div class="container">
             <h1>SphereAPI</h1>
-            <p>Bem-vindo à <span class="highlight">SphereAPI</span>, sua API de filmes, mangás e animes! Abaixo estão os detalhes de como usar a API e os planos disponíveis.</p>
+            <p>Bem-vindo à <span class="highlight">SphereAPI</span>, sua API de filmes! Abaixo estão os detalhes de como usar a API.</p>
             
             <h2>Rotas Disponíveis</h2>
             <ul>
@@ -392,48 +323,6 @@ def documentacao():
             </pre>
 
             <button class="example-button" onclick="window.location.href='/filmes'">Testar Rota /filmes</button>
-
-            <h2>Planos Disponíveis</h2>
-            <div class="planos">
-                <!-- Plano Básico -->
-                <div class="plano">
-                    <h3>Básico</h3>
-                    <div class="preco">R$ 29,90<span>/mês</span></div>
-                    <ul>
-                        <li>Até 1000 requisições/mês</li>
-                        <li>Acesso a filmes</li>
-                        <li>Suporte por e-mail</li>
-                    </ul>
-                    <button class="btn">Assinar</button>
-                </div>
-
-                <!-- Plano Intermediário -->
-                <div class="plano">
-                    <h3>Intermediário</h3>
-                    <div class="preco">R$ 59,90<span>/mês</span></div>
-                    <ul>
-                        <li>Até 5000 requisições/mês</li>
-                        <li>Acesso a filmes e mangás</li>
-                        <li>Suporte prioritário</li>
-                        <li>Estatísticas de uso</li>
-                    </ul>
-                    <button class="btn">Assinar</button>
-                </div>
-
-                <!-- Plano Premium -->
-                <div class="plano">
-                    <h3>Premium</h3>
-                    <div class="preco">R$ 99,90<span>/mês</span></div>
-                    <ul>
-                        <li>Requisições ilimitadas (∞)</li>
-                        <li>Acesso a filmes, mangás e animes</li>
-                        <li>Suporte 24/7</li>
-                        <li>Estatísticas de uso</li>
-                        <li>Integração personalizada</li>
-                    </ul>
-                    <button class="btn">Assinar</button>
-                </div>
-            </div>
         </div>
     </body>
     </html>
@@ -449,6 +338,17 @@ def get_filmes():
 
     # Atualiza os filmes com informações do TMDB
     filmes_atualizados = atualizar_filmes_com_tmdb(filmes)
+
+    # Adiciona &plan=free ao final de todas as URLs
+    for filme in filmes_atualizados:
+        if 'poster' in filme and filme['poster']:
+            filme['poster'] += "&plan=free"
+        if 'player' in filme and filme['player']:
+            filme['player'] += "&plan=free"
+        for ator in filme.get('elenco', []):
+            if 'foto' in ator and ator['foto']:
+                ator['foto'] += "&plan=free"
+
     return jsonify({"filmes": filmes_atualizados})
 
 # Rota para pesquisar filmes locais
@@ -468,6 +368,16 @@ def search_filmes():
         if titulo and titulo not in filme.get('titulo', '').lower():
             continue
         resultados.append(filme)
+
+    # Adiciona &plan=free ao final de todas as URLs
+    for filme in resultados:
+        if 'poster' in filme and filme['poster']:
+            filme['poster'] += "&plan=free"
+        if 'player' in filme and filme['player']:
+            filme['player'] += "&plan=free"
+        for ator in filme.get('elenco', []):
+            if 'foto' in ator and ator['foto']:
+                ator['foto'] += "&plan=free"
 
     return jsonify({"filmes": resultados})
 
@@ -514,6 +424,14 @@ def search_tmdb():
                     "elenco": elenco,
                     "poster": f"https://image.tmdb.org/t/p/w500{detalhes_filme.get('poster_path')}" if detalhes_filme.get("poster_path") else None
                 })
+
+        # Adiciona &plan=free ao final de todas as URLs
+        for filme in filmes:
+            if 'poster' in filme and filme['poster']:
+                filme['poster'] += "&plan=free"
+            for ator in filme.get('elenco', []):
+                if 'foto' in ator and ator['foto']:
+                    ator['foto'] += "&plan=free"
 
         return jsonify({"filmes": filmes})
     except requests.exceptions.RequestException as e:
