@@ -441,4 +441,83 @@ def documentacao():
     return render_template_string(doc_html)
 
 # Rota para obter os filmes locais atualizados com informações do TMDB
-@app.route('/filmes',
+@app.route('/filmes', methods=['GET'])
+def get_filmes():
+    filmes = ler_filmes(arquivo_json)
+    if "erro" in filmes:
+        return jsonify(filmes), 500
+
+    # Atualiza os filmes com informações do TMDB
+    filmes_atualizados = atualizar_filmes_com_tmdb(filmes)
+    return jsonify({"filmes": filmes_atualizados})
+
+# Rota para pesquisar filmes locais
+@app.route('/filmes/search', methods=['GET'])
+def search_filmes():
+    filmes = ler_filmes(arquivo_json)
+    if "erro" in filmes:
+        return jsonify(filmes), 500
+
+    titulo = request.args.get('title', '').lower().strip('"\'')
+    id_filme = request.args.get('id', type=int)
+
+    resultados = []
+    for filme in filmes:
+        if id_filme is not None and filme.get('id') != id_filme:
+            continue
+        if titulo and titulo not in filme.get('titulo', '').lower():
+            continue
+        resultados.append(filme)
+
+    return jsonify({"filmes": resultados})
+
+# Rota para buscar filmes no TMDB por título
+@app.route('/tmdb/search', methods=['GET'])
+def search_tmdb():
+    titulo = request.args.get('title', '').strip()
+    if not titulo:
+        return jsonify({"erro": "O parâmetro 'title' é obrigatório"}), 400
+
+    url = f"{TMDB_BASE_URL}/search/movie"
+    params = {
+        "api_key": TMDB_API_KEY,
+        "query": titulo,
+        "language": "pt-BR"
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        dados = response.json()
+
+        filmes = []
+        for filme in dados.get("results", []):
+            filme_id = filme.get("id")
+            detalhes_filme = buscar_detalhes_filme(filme_id)
+            creditos_filme = buscar_creditos_filme(filme_id)
+
+            if detalhes_filme and creditos_filme:
+                diretores = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Director"]
+                roteiristas = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Screenplay"]
+                elenco = [{"nome": pessoa["name"], "personagem": pessoa["character"], "foto": f"https://image.tmdb.org/t/p/w500{pessoa['profile_path']}" if pessoa.get("profile_path") else None} for pessoa in creditos_filme.get("cast", [])[:5]]
+
+                filmes.append({
+                    "id": filme_id,
+                    "titulo": detalhes_filme.get("title"),
+                    "ano": detalhes_filme.get("release_date", "").split("-")[0] if detalhes_filme.get("release_date") else "N/A",
+                    "generos": ", ".join([g["name"] for g in detalhes_filme.get("genres", [])]),
+                    "sinopse": detalhes_filme.get("overview"),
+                    "avaliacao": detalhes_filme.get("vote_average"),
+                    "duracao": detalhes_filme.get("runtime"),
+                    "diretores": diretores,
+                    "roteiristas": roteiristas,
+                    "elenco": elenco,
+                    "poster": f"https://image.tmdb.org/t/p/w500{detalhes_filme.get('poster_path')}" if detalhes_filme.get("poster_path") else None
+                })
+
+        return jsonify({"filmes": filmes})
+    except requests.exceptions.RequestException as e:
+        return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
