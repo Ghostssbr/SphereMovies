@@ -11,6 +11,9 @@ arquivo_json = "filmes.json"
 TMDB_API_KEY = "e83f31e1c568e9c4c7ed9f9fea0cd541"  # Substitua pela sua chave
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
+# Conjunto para armazenar IPs únicos
+ips_unicos = set()
+
 # Função para ler e retornar os dados do JSON local
 def ler_filmes(arquivo):
     try:
@@ -118,7 +121,11 @@ def atualizar_filmes_com_tmdb(filmes):
 # Rota principal com documentação estilizada
 @app.route('/')
 def documentacao():
-    doc_html = """
+    # Adiciona o IP do usuário ao conjunto de IPs únicos
+    ip_usuario = request.remote_addr
+    ips_unicos.add(ip_usuario)
+
+    doc_html = f"""
     <!DOCTYPE html>
     <html lang="pt-BR">
     <head>
@@ -126,21 +133,21 @@ def documentacao():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>SphereAPI - Documentação</title>
         <style>
-            * {
+            * {{
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
-            }
+            }}
 
-            body {
+            body {{
                 font-family: 'Poppins', sans-serif;
                 background: linear-gradient(135deg, #1a1a1a, #000);
                 color: #fff;
                 line-height: 1.6;
                 padding: 20px;
-            }
+            }}
 
-            .container {
+            .container {{
                 max-width: 800px;
                 margin: 50px auto;
                 padding: 30px;
@@ -149,9 +156,9 @@ def documentacao():
                 backdrop-filter: blur(10px);
                 box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
                 border: 1px solid rgba(255, 255, 255, 0.1);
-            }
+            }}
 
-            h1 {
+            h1 {{
                 color: #fff;
                 text-align: center;
                 font-size: 3em;
@@ -161,18 +168,18 @@ def documentacao():
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 animation: glow 2s infinite alternate;
-            }
+            }}
 
-            @keyframes glow {
-                0% {
+            @keyframes glow {{
+                0% {{
                     text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
-                }
-                100% {
+                }}
+                100% {{
                     text-shadow: 0 0 20px rgba(255, 0, 0, 0.9);
-                }
-            }
+                }}
+            }}
 
-            h2 {
+            h2 {{
                 color: #ff0000;
                 font-size: 1.8em;
                 margin-top: 30px;
@@ -180,43 +187,43 @@ def documentacao():
                 font-weight: 500;
                 border-bottom: 2px solid #ff0000;
                 padding-bottom: 5px;
-            }
+            }}
 
-            p {
+            p {{
                 font-size: 1.1em;
                 margin-bottom: 20px;
-            }
+            }}
 
-            code {
+            code {{
                 background: rgba(255, 0, 0, 0.1);
                 color: #ff0000;
                 padding: 3px 8px;
                 border-radius: 4px;
                 font-family: 'Courier New', monospace;
                 font-size: 0.95em;
-            }
+            }}
 
-            a {
+            a {{
                 color: #ff0000;
                 text-decoration: none;
                 transition: color 0.3s ease;
-            }
+            }}
 
-            a:hover {
+            a:hover {{
                 color: #ff6f00;
-            }
+            }}
 
-            ul {
+            ul {{
                 list-style-type: none;
                 padding: 0;
-            }
+            }}
 
-            li {
+            li {{
                 margin: 10px 0;
                 font-size: 1.1em;
-            }
+            }}
 
-            pre {
+            pre {{
                 background: rgba(255, 0, 0, 0.1);
                 padding: 15px;
                 border-radius: 8px;
@@ -225,14 +232,14 @@ def documentacao():
                 font-size: 0.95em;
                 line-height: 1.5;
                 margin: 20px 0;
-            }
+            }}
 
-            .highlight {
+            .highlight {{
                 color: #ff0000;
                 font-weight: bold;
-            }
+            }}
 
-            .example-button {
+            .example-button {{
                 display: inline-block;
                 margin-top: 20px;
                 padding: 10px 20px;
@@ -243,12 +250,32 @@ def documentacao():
                 font-size: 1em;
                 cursor: pointer;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
-            }
+            }}
 
-            .example-button:hover {
+            .example-button:hover {{
                 transform: translateY(-3px);
                 box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
-            }
+            }}
+
+            .counter {{
+                text-align: center;
+                font-size: 1.5em;
+                margin-top: 20px;
+                color: #ff0000;
+                animation: pulse 2s infinite;
+            }}
+
+            @keyframes pulse {{
+                0% {{
+                    transform: scale(1);
+                }}
+                50% {{
+                    transform: scale(1.1);
+                }}
+                100% {{
+                    transform: scale(1);
+                }}
+            }}
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     </head>
@@ -257,6 +284,10 @@ def documentacao():
             <h1>SphereAPI</h1>
             <p>Bem-vindo à <span class="highlight">SphereAPI</span>, sua API de filmes! Abaixo estão os detalhes de como usar a API.</p>
             
+            <div class="counter">
+                <strong>Total de usuários únicos:</strong> {len(ips_unicos)}
+            </div>
+
             <h2>Rotas Disponíveis</h2>
             <ul>
                 <li><strong>GET /filmes</strong>: Retorna a lista completa de filmes locais, atualizada com informações do TMDB.</li>
@@ -278,9 +309,9 @@ def documentacao():
 
             <h2>Resposta de Exemplo</h2>
             <pre>
-{
+{{
     "filmes": [
-        {
+        {{
             "id": 634649,
             "titulo": "Homem-Aranha: Sem Volta para Casa",
             "ano": "2021",
@@ -291,30 +322,30 @@ def documentacao():
             "diretores": ["Jon Watts"],
             "roteiristas": ["Chris McKenna", "Erik Sommers"],
             "elenco": [
-                {
+                {{
                     "nome": "Tom Holland",
                     "personagem": "Peter Parker / Homem-Aranha",
                     "foto": "https://image.tmdb.org/t/p/w500/2qhIDp44cAqP2eLWV5ORqao1YgR.jpg"
-                },
-                {
+                }},
+                {{
                     "nome": "Zendaya",
                     "personagem": "MJ",
                     "foto": "https://image.tmdb.org/t/p/w500/6TE2AlOUqcrs7CyJiWYgodmee1r.jpg"
-                }
+                }}
             ],
             "poster": "https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
             "player": "https://exemplo.com/player1"
-        }
+        }}
     ]
-}
+}}
             </pre>
 
             <h2>Erros</h2>
             <p>Se ocorrer um erro ao ler o arquivo JSON, a API retornará:</p>
             <pre>
-{
+{{
     "erro": "Erro ao ler o arquivo: [mensagem de erro]"
-}
+}}
             </pre>
 
             <button class="example-button" onclick="window.location.href='/filmes'">Testar Rota /filmes</button>
@@ -327,6 +358,10 @@ def documentacao():
 # Rota para obter os filmes locais atualizados com informações do TMDB
 @app.route('/filmes', methods=['GET'])
 def get_filmes():
+    # Adiciona o IP do usuário ao conjunto de IPs únicos
+    ip_usuario = request.remote_addr
+    ips_unicos.add(ip_usuario)
+
     filmes = ler_filmes(arquivo_json)
     if "erro" in filmes:
         return jsonify(filmes), 500
@@ -338,6 +373,10 @@ def get_filmes():
 # Rota para pesquisar filmes locais
 @app.route('/filmes/search', methods=['GET'])
 def search_filmes():
+    # Adiciona o IP do usuário ao conjunto de IPs únicos
+    ip_usuario = request.remote_addr
+    ips_unicos.add(ip_usuario)
+
     filmes = ler_filmes(arquivo_json)
     if "erro" in filmes:
         return jsonify(filmes), 500
@@ -358,6 +397,10 @@ def search_filmes():
 # Rota para buscar filmes no TMDB por título
 @app.route('/tmdb/search', methods=['GET'])
 def search_tmdb():
+    # Adiciona o IP do usuário ao conjunto de IPs únicos
+    ip_usuario = request.remote_addr
+    ips_unicos.add(ip_usuario)
+
     titulo = request.args.get('title', '').strip()
     if not titulo:
         return jsonify({"erro": "O parâmetro 'title' é obrigatório"}), 400
@@ -404,6 +447,4 @@ def search_tmdb():
         return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True) 
-
-
+    app.run(debug=True)
