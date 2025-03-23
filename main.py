@@ -115,12 +115,6 @@ def atualizar_filmes_com_tmdb(filmes):
                     })
     return filmes
 
-# Função para adicionar &plan=free ao final de uma URL
-def adicionar_plan_free(url):
-    if url and "&plan=free" not in url:
-        return f"{url}&plan=free"
-    return url
-
 # Rota principal com documentação estilizada
 @app.route('/')
 def documentacao():
@@ -132,7 +126,129 @@ def documentacao():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>SphereAPI - Documentação</title>
         <style>
-            /* Estilos omitidos para brevidade */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: 'Poppins', sans-serif;
+                background: linear-gradient(135deg, #1a1a1a, #000);
+                color: #fff;
+                line-height: 1.6;
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 800px;
+                margin: 50px auto;
+                padding: 30px;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 15px;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            h1 {
+                color: #fff;
+                text-align: center;
+                font-size: 3em;
+                margin-bottom: 20px;
+                font-weight: 600;
+                background: linear-gradient(90deg, #ff0000, #ff6f00);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: glow 2s infinite alternate;
+            }
+
+            @keyframes glow {
+                0% {
+                    text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+                }
+                100% {
+                    text-shadow: 0 0 20px rgba(255, 0, 0, 0.9);
+                }
+            }
+
+            h2 {
+                color: #ff0000;
+                font-size: 1.8em;
+                margin-top: 30px;
+                margin-bottom: 15px;
+                font-weight: 500;
+                border-bottom: 2px solid #ff0000;
+                padding-bottom: 5px;
+            }
+
+            p {
+                font-size: 1.1em;
+                margin-bottom: 20px;
+            }
+
+            code {
+                background: rgba(255, 0, 0, 0.1);
+                color: #ff0000;
+                padding: 3px 8px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 0.95em;
+            }
+
+            a {
+                color: #ff0000;
+                text-decoration: none;
+                transition: color 0.3s ease;
+            }
+
+            a:hover {
+                color: #ff6f00;
+            }
+
+            ul {
+                list-style-type: none;
+                padding: 0;
+            }
+
+            li {
+                margin: 10px 0;
+                font-size: 1.1em;
+            }
+
+            pre {
+                background: rgba(255, 0, 0, 0.1);
+                padding: 15px;
+                border-radius: 8px;
+                color: #fff;
+                overflow-x: auto;
+                font-size: 0.95em;
+                line-height: 1.5;
+                margin: 20px 0;
+            }
+
+            .highlight {
+                color: #ff0000;
+                font-weight: bold;
+            }
+
+            .example-button {
+                display: inline-block;
+                margin-top: 20px;
+                padding: 10px 20px;
+                background: linear-gradient(90deg, #ff0000, #ff6f00);
+                color: #fff;
+                border: none;
+                border-radius: 5px;
+                font-size: 1em;
+                cursor: pointer;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+
+            .example-button:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
+            }
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     </head>
@@ -217,17 +333,6 @@ def get_filmes():
 
     # Atualiza os filmes com informações do TMDB
     filmes_atualizados = atualizar_filmes_com_tmdb(filmes)
-
-    # Adiciona &plan=free ao final de todas as URLs
-    for filme in filmes_atualizados:
-        if 'poster' in filme and filme['poster']:
-            filme['poster'] = adicionar_plan_free(filme['poster'])
-        if 'player' in filme and filme['player']:
-            filme['player'] = adicionar_plan_free(filme['player'])
-        for ator in filme.get('elenco', []):
-            if 'foto' in ator and ator['foto']:
-                ator['foto'] = adicionar_plan_free(ator['foto'])
-
     return jsonify({"filmes": filmes_atualizados})
 
 # Rota para pesquisar filmes locais
@@ -247,16 +352,6 @@ def search_filmes():
         if titulo and titulo not in filme.get('titulo', '').lower():
             continue
         resultados.append(filme)
-
-    # Adiciona &plan=free ao final de todas as URLs
-    for filme in resultados:
-        if 'poster' in filme and filme['poster']:
-            filme['poster'] = adicionar_plan_free(filme['poster'])
-        if 'player' in filme and filme['player']:
-            filme['player'] = adicionar_plan_free(filme['player'])
-        for ator in filme.get('elenco', []):
-            if 'foto' in ator and ator['foto']:
-                ator['foto'] = adicionar_plan_free(ator['foto'])
 
     return jsonify({"filmes": resultados})
 
@@ -304,17 +399,12 @@ def search_tmdb():
                     "poster": f"https://image.tmdb.org/t/p/w500{detalhes_filme.get('poster_path')}" if detalhes_filme.get("poster_path") else None
                 })
 
-        # Adiciona &plan=free ao final de todas as URLs
-        for filme in filmes:
-            if 'poster' in filme and filme['poster']:
-                filme['poster'] = adicionar_plan_free(filme['poster'])
-            for ator in filme.get('elenco', []):
-                if 'foto' in ator and ator['foto']:
-                    ator['foto'] = adicionar_plan_free(ator['foto'])
-
         return jsonify({"filmes": filmes})
     except requests.exceptions.RequestException as e:
         return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) 
+
+
+eu quero que coloque em todos as finais das URL sem mexer na rota tô falando assim toda final do campo de URL coloque &plan=free
