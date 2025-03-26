@@ -1,450 +1,218 @@
-from flask import Flask, jsonify, render_template_string, request
-import json
-import requests
+import cloudscraper
+from bs4 import BeautifulSoup
+import html
+import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-# Nome do arquivo JSON local
-arquivo_json = "filmes.json"
+# Inicializa o cloudscraper
+scraper = cloudscraper.create_scraper()
 
-# Chave da API do TMDB (substitua pela sua chave)
-TMDB_API_KEY = "e83f31e1c568e9c4c7ed9f9fea0cd541"  # Substitua pela sua chave
-TMDB_BASE_URL = "https://api.themoviedb.org/3"
+# Variável global para armazenar os filmes em cache
+filmes_cache = None
 
-# Conjunto para armazenar IPs únicos
-ips_unicos = set()
-
-# Função para ler e retornar os dados do JSON local
-def ler_filmes(arquivo):
+def carregar_filmes():
+    global filmes_cache
+    url = "https://visioncine-1.com.br/movies"
+    
     try:
-        with open(arquivo, "r", encoding="utf-8") as file:
-            filmes = json.load(file)
-            return filmes
+        response = scraper.get(url)
+        response.encoding = 'utf-8'
+
+        if response.status_code != 200:
+            print("Erro ao carregar os filmes.")
+            return []
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        filmes = soup.find_all("div", class_="swiper-slide item poster")
+        filmes_info = []
+
+        for filme in filmes:
+            titulo_tag = filme.find("h6")
+            titulo = titulo_tag.text.strip() if titulo_tag else "Desconhecido"
+
+            ano_tag = filme.find("span", string=lambda x: x and "2025" in x)
+            ano = ano_tag.text.strip() if ano_tag else "Desconhecido"
+
+            imagem_tag = filme.find("div", class_="content")
+            imagem = imagem_tag["style"].split("url(")[1].split(")")[0] if imagem_tag else "Imagem não disponível"
+
+            link_assistir_tag = filme.find("a", href=True)
+            link_assistir = link_assistir_tag["href"] if link_assistir_tag else "Link não disponível"
+
+            filmes_info.append({
+                "id": len(filmes_info) + 1,
+                "titulo": html.unescape(titulo),
+                "ano": html.unescape(ano),
+                "imagem": imagem,
+                "link_assistir": link_assistir
+            })
+
+        print(f"Carregados {len(filmes_info)} filmes.")
+        filmes_cache = filmes_info
+        return filmes_info
     except Exception as e:
-        return {"erro": f"Erro ao ler o arquivo: {e}"}
+        print(f"Erro ao carregar filmes: {str(e)}")
+        return []
 
-# Função para buscar detalhes de um filme no TMDB por título
-def buscar_filme_no_tmdb(titulo):
-    url = f"{TMDB_BASE_URL}/search/movie"
-    params = {
-        "api_key": TMDB_API_KEY,
-        "query": titulo,
-        "language": "pt-BR"
-    }
+def pegar_detalhes_do_filme(filme):
+    url_filme = filme["link_assistir"]
+
+    if url_filme == "Link não disponível":
+        return {"error": "Link de assistir não disponível."}
+
     try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        dados = response.json()
-        if dados.get("results"):
-            return dados["results"][0]  # Retorna o primeiro resultado
-        return None
-    except requests.exceptions.RequestException as e:
-        return None
+        # Primeira requisição: página de detalhes do filme
+        print(f"Fazendo requisição para a página de detalhes: {url_filme}")
+        response = scraper.get(url_filme)
+        response.encoding = 'utf-8'
 
-# Função para buscar detalhes completos de um filme no TMDB
-def buscar_detalhes_filme(filme_id):
-    url = f"{TMDB_BASE_URL}/movie/{filme_id}"
-    params = {
-        "api_key": TMDB_API_KEY,
-        "language": "pt-BR"
-    }
+        if response.status_code != 200:
+            print(f"Erro ao acessar a página do filme. Status code: {response.status_code}")
+            return {"error": "Erro ao acessar a página do filme."}
+
+        soup = BeautifulSoup(response.content, "html.parser")
+
+        titulo = soup.select_one("h1.fw-bolder.mb-0")
+        titulo = titulo.text.strip() if titulo else "Título não disponível"
+
+        log_info = soup.select_one("p.log")
+        if log_info:
+            spans = log_info.find_all("span")
+            if len(spans) >= 3:
+                duracao = spans[0].text.strip() if spans[0] else "Duração não disponível"
+                ano = spans[1].text.strip() if spans[1] else "Ano não disponível"
+                classificacao = spans[2].text.strip() if spans[2] else "Classificação não disponível"
+            else:
+                duracao = "Duração não disponível"
+                ano = "Ano não disponível"
+                classificacao = "Classificação não disponível"
+        else:
+            duracao = "Duração não disponível"
+            ano = "Ano não disponível"
+            classificacao = "Classificação não disponível"
+
+        imdb = soup.select_one("p.log > span:nth-of-type(5)")
+        imdb = imdb.text.strip() if imdb else "IMDb não disponível"
+
+        sinopse = soup.select_one("p.small.linefive")
+        sinopse = sinopse.text.strip() if sinopse else "Sinopse não disponível"
+
+        generos = soup.select_one("p.lineone > span:nth-of-type(2)")
+        generos = ", ".join([span.text.strip() for span in generos.select("span")]) if generos else "Gêneros não disponíveis"
+
+        qualidade = soup.select_one("p.log > span:nth-of-type(4)")
+        qualidade = qualidade.text.strip() if qualidade else "Qualidade não disponível"
+
+        # Extrair o link do botão "ASSISTIR"
+        link_assistir = soup.select_one("a.btn.free.fw-bold:has(i.far.fa-play)")
+        link_assistir = link_assistir["href"] if link_assistir else "Link de assistir não disponível"
+
+        # Segunda requisição: página do player
+        if link_assistir != "Link de assistir não disponível":
+            print(f"Fazendo requisição para a página do player: {link_assistir}")
+            response_player = scraper.get(link_assistir)
+            response_player.encoding = 'utf-8'
+
+            if response_player.status_code != 200:
+                print(f"Erro ao acessar a página do player. Status code: {response_player.status_code}")
+                return {"error": "Erro ao acessar a página do player."}
+
+            # Extrair o link do player
+            link_player = extrair_link_player(response_player.text)
+        else:
+            link_player = "Link do player não encontrado."
+
+        return {
+            "id": filme["id"],
+            "titulo": html.unescape(titulo),
+            "ano": html.unescape(ano),
+            "duracao": html.unescape(duracao),
+            "classificacao": html.unescape(classificacao),
+            "imdb": html.unescape(imdb),
+            "sinopse": html.unescape(sinopse),
+            "generos": html.unescape(generos),
+            "qualidade": html.unescape(qualidade),
+            "player": link_player
+        }
+    except Exception as e:
+        print(f"Erro ao obter detalhes do filme {filme['titulo']}: {str(e)}")
+        return {
+            "id": filme["id"],
+            "titulo": filme["titulo"],
+            "error": f"Erro ao obter detalhes: {str(e)}"
+        }
+
+def extrair_link_player(html_content):
     try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return None
+        soup = BeautifulSoup(html_content, "html.parser")
+        scripts = soup.find_all("script")
 
-# Função para buscar créditos de um filme no TMDB
-def buscar_creditos_filme(filme_id):
-    url = f"{TMDB_BASE_URL}/movie/{filme_id}/credits"
-    params = {
-        "api_key": TMDB_API_KEY,
-        "language": "pt-BR"
-    }
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return None
+        for script in scripts:
+            script_content = script.string
+            if script_content and "initializePlayer" in script_content:
+                match = re.search(r"initializePlayer\('([^']+)'", script_content)
+                if match:
+                    return match.group(1)
 
-# Função para buscar detalhes de uma pessoa no TMDB
-def buscar_detalhes_pessoa(pessoa_id):
-    url = f"{TMDB_BASE_URL}/person/{pessoa_id}"
-    params = {
-        "api_key": TMDB_API_KEY,
-        "language": "pt-BR"
-    }
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return None
+        return "Link do player não encontrado."
+    except Exception as e:
+        print(f"Erro ao extrair link do player: {str(e)}")
+        return "Erro ao extrair link do player"
 
-# Função para atualizar os filmes locais com informações do TMDB
-def atualizar_filmes_com_tmdb(filmes):
-    for filme in filmes:
-        titulo = filme.get("titulo")
-        if titulo:
-            dados_tmdb = buscar_filme_no_tmdb(titulo)
-            if dados_tmdb:
-                filme_id = dados_tmdb.get("id")
-                detalhes_filme = buscar_detalhes_filme(filme_id)
-                creditos_filme = buscar_creditos_filme(filme_id)
+def atualizar_filmes():
+    global filmes_cache
+    filmes = carregar_filmes()
+    
+    if not filmes:
+        return filmes_cache or []
+    
+    detalhes_filmes = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(pegar_detalhes_do_filme, filme) for filme in filmes]
+        for future in as_completed(futures):
+            detalhes_filmes.append(future.result())
+    
+    filmes_cache = detalhes_filmes
+    return detalhes_filmes
 
-                if detalhes_filme and creditos_filme:
-                    # Busca diretores, roteiristas e elenco
-                    diretores = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Director"]
-                    roteiristas = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Screenplay"]
-                    elenco = [{"nome": pessoa["name"], "personagem": pessoa["character"], "foto": f"https://image.tmdb.org/t/p/w500{pessoa['profile_path']}" if pessoa.get("profile_path") else None} for pessoa in creditos_filme.get("cast", [])[:5]]  # Limita a 5 atores
-
-                    # Atualiza as informações do filme
-                    player = filme.get("player", "")  # Preserva o campo "player"
-                    filme.update({
-                        "id": filme_id,
-                        "titulo": detalhes_filme.get("title"),
-                        "ano": detalhes_filme.get("release_date", "").split("-")[0] if detalhes_filme.get("release_date") else "N/A",
-                        "generos": ", ".join([g["name"] for g in detalhes_filme.get("genres", [])]),
-                        "sinopse": detalhes_filme.get("overview"),
-                        "avaliacao": detalhes_filme.get("vote_average"),
-                        "duracao": detalhes_filme.get("runtime"),
-                        "diretores": diretores,
-                        "roteiristas": roteiristas,
-                        "elenco": elenco,
-                        "poster": f"https://image.tmdb.org/t/p/w500{detalhes_filme.get('poster_path')}" if detalhes_filme.get("poster_path") else None,
-                        "player": player  # Mantém o campo "player" original
-                    })
-    return filmes
-
-# Rota principal com documentação estilizada
-@app.route('/')
-def documentacao():
-    # Adiciona o IP do usuário ao conjunto de IPs únicos
-    ip_usuario = request.remote_addr
-    ips_unicos.add(ip_usuario)
-
-    doc_html = f"""
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>SphereAPI - Documentação</title>
-        <style>
-            * {{
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }}
-
-            body {{
-                font-family: 'Poppins', sans-serif;
-                background: linear-gradient(135deg, #1a1a1a, #000);
-                color: #fff;
-                line-height: 1.6;
-                padding: 20px;
-            }}
-
-            .container {{
-                max-width: 800px;
-                margin: 50px auto;
-                padding: 30px;
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 15px;
-                backdrop-filter: blur(10px);
-                box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }}
-
-            h1 {{
-                color: #fff;
-                text-align: center;
-                font-size: 3em;
-                margin-bottom: 20px;
-                font-weight: 600;
-                background: linear-gradient(90deg, #ff0000, #ff6f00);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                animation: glow 2s infinite alternate;
-            }}
-
-            @keyframes glow {{
-                0% {{
-                    text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
-                }}
-                100% {{
-                    text-shadow: 0 0 20px rgba(255, 0, 0, 0.9);
-                }}
-            }}
-
-            h2 {{
-                color: #ff0000;
-                font-size: 1.8em;
-                margin-top: 30px;
-                margin-bottom: 15px;
-                font-weight: 500;
-                border-bottom: 2px solid #ff0000;
-                padding-bottom: 5px;
-            }}
-
-            p {{
-                font-size: 1.1em;
-                margin-bottom: 20px;
-            }}
-
-            code {{
-                background: rgba(255, 0, 0, 0.1);
-                color: #ff0000;
-                padding: 3px 8px;
-                border-radius: 4px;
-                font-family: 'Courier New', monospace;
-                font-size: 0.95em;
-            }}
-
-            a {{
-                color: #ff0000;
-                text-decoration: none;
-                transition: color 0.3s ease;
-            }}
-
-            a:hover {{
-                color: #ff6f00;
-            }}
-
-            ul {{
-                list-style-type: none;
-                padding: 0;
-            }}
-
-            li {{
-                margin: 10px 0;
-                font-size: 1.1em;
-            }}
-
-            pre {{
-                background: rgba(255, 0, 0, 0.1);
-                padding: 15px;
-                border-radius: 8px;
-                color: #fff;
-                overflow-x: auto;
-                font-size: 0.95em;
-                line-height: 1.5;
-                margin: 20px 0;
-            }}
-
-            .highlight {{
-                color: #ff0000;
-                font-weight: bold;
-            }}
-
-            .example-button {{
-                display: inline-block;
-                margin-top: 20px;
-                padding: 10px 20px;
-                background: linear-gradient(90deg, #ff0000, #ff6f00);
-                color: #fff;
-                border: none;
-                border-radius: 5px;
-                font-size: 1em;
-                cursor: pointer;
-                transition: transform 0.3s ease, box-shadow 0.3s ease;
-            }}
-
-            .example-button:hover {{
-                transform: translateY(-3px);
-                box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
-            }}
-
-            .counter {{
-                text-align: center;
-                font-size: 1.5em;
-                margin-top: 20px;
-                color: #ff0000;
-                animation: pulse 2s infinite;
-            }}
-
-            @keyframes pulse {{
-                0% {{
-                    transform: scale(1);
-                }}
-                50% {{
-                    transform: scale(1.1);
-                }}
-                100% {{
-                    transform: scale(1);
-                }}
-            }}
-        </style>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-    </head>
-    <body>
-        <div class="container">
-            <h1>SphereAPI</h1>
-            <p>Bem-vindo à <span class="highlight">SphereAPI</span>, sua API de filmes! Abaixo estão os detalhes de como usar a API.</p>
-            
-            <div class="counter">
-                <strong>Total de usuários únicos:</strong> {len(ips_unicos)}
-            </div>
-
-            <h2>Rotas Disponíveis</h2>
-            <ul>
-                <li><strong>GET /filmes</strong>: Retorna a lista completa de filmes locais, atualizada com informações do TMDB.</li>
-                <li><strong>GET /filmes/search</strong>: Permite pesquisar filmes locais por título ou ID.</li>
-                <li><strong>GET /tmdb/search</strong>: Busca filmes no TMDB por título.</li>
-            </ul>
-
-            <h2>Exemplo de Uso</h2>
-            <p>Para obter a lista de filmes locais atualizada, faça uma requisição GET para:</p>
-            <code>GET /filmes</code>
-
-            <p>Para pesquisar filmes locais por título ou ID, use:</p>
-            <code>GET /filmes/search?title=Homem</code><br>
-            <code>GET /filmes/search?id=1</code><br>
-            <code>GET /filmes/search?title=Homem&id=1</code>
-
-            <p>Para buscar filmes no TMDB por título, use:</p>
-            <code>GET /tmdb/search?title=Homem</code>
-
-            <h2>Resposta de Exemplo</h2>
-            <pre>
-{{
-    "filmes": [
-        {{
-            "id": 634649,
-            "titulo": "Homem-Aranha: Sem Volta para Casa",
-            "ano": "2021",
-            "generos": "Ação, Aventura, Ficção Científica",
-            "sinopse": "Peter Parker é desmascarado e não consegue mais separar sua vida normal dos grandes riscos de ser um super-herói...",
-            "avaliacao": 8.3,
-            "duracao": 148,
-            "diretores": ["Jon Watts"],
-            "roteiristas": ["Chris McKenna", "Erik Sommers"],
-            "elenco": [
-                {{
-                    "nome": "Tom Holland",
-                    "personagem": "Peter Parker / Homem-Aranha",
-                    "foto": "https://image.tmdb.org/t/p/w500/2qhIDp44cAqP2eLWV5ORqao1YgR.jpg"
-                }},
-                {{
-                    "nome": "Zendaya",
-                    "personagem": "MJ",
-                    "foto": "https://image.tmdb.org/t/p/w500/6TE2AlOUqcrs7CyJiWYgodmee1r.jpg"
-                }}
-            ],
-            "poster": "https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
-            "player": "https://exemplo.com/player1"
-        }}
-    ]
-}}
-            </pre>
-
-            <h2>Erros</h2>
-            <p>Se ocorrer um erro ao ler o arquivo JSON, a API retornará:</p>
-            <pre>
-{{
-    "erro": "Erro ao ler o arquivo: [mensagem de erro]"
-}}
-            </pre>
-
-            <button class="example-button" onclick="window.location.href='/filmes'">Testar Rota /filmes</button>
-        </div>
-    </body>
-    </html>
-    """
-    return render_template_string(doc_html)
-
-# Rota para obter os filmes locais atualizados com informações do TMDB
+# Rotas da API
 @app.route('/filmes', methods=['GET'])
 def get_filmes():
-    # Adiciona o IP do usuário ao conjunto de IPs únicos
-    ip_usuario = request.remote_addr
-    ips_unicos.add(ip_usuario)
+    if filmes_cache is None:
+        atualizar_filmes()
+    return jsonify(filmes_cache or [])
 
-    filmes = ler_filmes(arquivo_json)
-    if "erro" in filmes:
-        return jsonify(filmes), 500
+@app.route('/filmes/<int:filme_id>', methods=['GET'])
+def get_filme(filme_id):
+    if filmes_cache is None:
+        atualizar_filmes()
+    
+    filme = next((f for f in (filmes_cache or []) if f.get('id') == filme_id), None)
+    if filme:
+        return jsonify(filme)
+    else:
+        return jsonify({"error": "Filme não encontrado"}), 404
 
-    # Atualiza os filmes com informações do TMDB
-    filmes_atualizados = atualizar_filmes_com_tmdb(filmes)
-    return jsonify({"filmes": filmes_atualizados})
-
-# Rota para pesquisar filmes locais
-@app.route('/filmes/search', methods=['GET'])
-def search_filmes():
-    # Adiciona o IP do usuário ao conjunto de IPs únicos
-    ip_usuario = request.remote_addr
-    ips_unicos.add(ip_usuario)
-
-    filmes = ler_filmes(arquivo_json)
-    if "erro" in filmes:
-        return jsonify(filmes), 500
-
-    titulo = request.args.get('title', '').lower().strip('"\'')
-    id_filme = request.args.get('id', type=int)
-
-    resultados = []
-    for filme in filmes:
-        if id_filme is not None and filme.get('id') != id_filme:
-            continue
-        if titulo and titulo not in filme.get('titulo', '').lower():
-            continue
-        resultados.append(filme)
-
-    return jsonify({"filmes": resultados})
-
-# Rota para buscar filmes no TMDB por título
-@app.route('/tmdb/search', methods=['GET'])
-def search_tmdb():
-    # Adiciona o IP do usuário ao conjunto de IPs únicos
-    ip_usuario = request.remote_addr
-    ips_unicos.add(ip_usuario)
-
-    titulo = request.args.get('title', '').strip()
-    if not titulo:
-        return jsonify({"erro": "O parâmetro 'title' é obrigatório"}), 400
-
-    url = f"{TMDB_BASE_URL}/search/movie"
-    params = {
-        "api_key": TMDB_API_KEY,
-        "query": titulo,
-        "language": "pt-BR"
-    }
-
+@app.route('/atualizar', methods=['GET'])
+def atualizar():
     try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        dados = response.json()
-
-        filmes = []
-        for filme in dados.get("results", []):
-            filme_id = filme.get("id")
-            detalhes_filme = buscar_detalhes_filme(filme_id)
-            creditos_filme = buscar_creditos_filme(filme_id)
-
-            if detalhes_filme and creditos_filme:
-                diretores = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Director"]
-                roteiristas = [pessoa["name"] for pessoa in creditos_filme.get("crew", []) if pessoa["job"] == "Screenplay"]
-                elenco = [{"nome": pessoa["name"], "personagem": pessoa["character"], "foto": f"https://image.tmdb.org/t/p/w500{pessoa['profile_path']}" if pessoa.get("profile_path") else None} for pessoa in creditos_filme.get("cast", [])[:5]]
-
-                filmes.append({
-                    "id": filme_id,
-                    "titulo": detalhes_filme.get("title"),
-                    "ano": detalhes_filme.get("release_date", "").split("-")[0] if detalhes_filme.get("release_date") else "N/A",
-                    "generos": ", ".join([g["name"] for g in detalhes_filme.get("genres", [])]),
-                    "sinopse": detalhes_filme.get("overview"),
-                    "avaliacao": detalhes_filme.get("vote_average"),
-                    "duracao": detalhes_filme.get("runtime"),
-                    "diretores": diretores,
-                    "roteiristas": roteiristas,
-                    "elenco": elenco,
-                    "poster": f"https://image.tmdb.org/t/p/w500{detalhes_filme.get('poster_path')}" if detalhes_filme.get("poster_path") else None
-                })
-
-        return jsonify({"filmes": filmes})
-    except requests.exceptions.RequestException as e:
-        return jsonify({"erro": f"Erro ao buscar no TMDB: {e}"}), 500
+        filmes = atualizar_filmes()
+        return jsonify({
+            "status": "success",
+            "message": f"Filmes atualizados. Total: {len(filmes)}",
+            "filmes": filmes
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Atualiza os filmes ao iniciar o servidor
+    atualizar_filmes()
+    # Inicia o servidor Flask
+    app.run(host='0.0.0.0', port=5000, debug=True)()
