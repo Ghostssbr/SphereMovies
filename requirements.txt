@@ -1,5 +1,6 @@
-uvicorn
-beautifulsoup4
-aiohttp
 cloudscraper
-flask
+Flask
+beautifulsoup4
+requests
+lxml
+gunicorn
